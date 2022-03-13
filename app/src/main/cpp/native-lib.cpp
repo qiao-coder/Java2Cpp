@@ -24,6 +24,7 @@ struct JavaJNIInterface {
     jfieldID static_num;
     jmethodID getNum;
     jmethodID getStaticNum;
+    jmethodID javaThrowExceptMethod;
 };
 static JavaJNIInterface javaJNIInterface;
 
@@ -90,11 +91,8 @@ Java_com_example_java2cpp_JNIInterface_stringFromJNI(JNIEnv *env, jclass clazz) 
     return env->NewStringUTF(hello.c_str());
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_com_example_java2cpp_JNIInterface_nativeUnHandleJavaException(JNIEnv *env, jclass clazz) {
-    jclass javaJNIClass = env->FindClass("com/example/java2cpp/JNIInterface");
-    jmethodID javaThrowExceptMethod = env->GetStaticMethodID(clazz, "javaThrowException", "()V");
-    env->CallStaticVoidMethod(javaJNIClass, javaThrowExceptMethod);
+jint unhandle_java_exception(JNIEnv *env, jclass clazz) {
+    env->CallStaticVoidMethod(javaJNIInterface.class_ref, javaJNIInterface.javaThrowExceptMethod);
     if (env->ExceptionCheck()) {
 //        env->ExceptionClear();
         return -1;
@@ -103,16 +101,13 @@ Java_com_example_java2cpp_JNIInterface_nativeUnHandleJavaException(JNIEnv *env, 
     }
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_com_example_java2cpp_JNIInterface_nativeHandleJavaException(JNIEnv *env, jclass clazz) {
-    jclass javaJNIClass = env->FindClass("com/example/java2cpp/JNIInterface");
-    jmethodID javaThrowExceptMethod = env->GetStaticMethodID(clazz, "javaThrowException", "()V");
+jint handle_java_exception(JNIEnv *env, jclass clazz) {
     //产生了一个Java异常
-    env->CallStaticVoidMethod(javaJNIClass, javaThrowExceptMethod);
-    //在Clear之前，不能调用除Check、Clear之外的方法
-    //env->FindClass("com/example/java2cpp/JNI");
+    env->CallStaticVoidMethod(javaJNIInterface.class_ref, javaJNIInterface.javaThrowExceptMethod);
+    //在Clear之前，不能调用除ExceptionXxx系列之外的JNI方法
+    //env->FindClass("com/example/java2cpp/JNIInterface");
     if (env->ExceptionCheck()) {
-        env->ExceptionClear();
+        env->ExceptionOccurred();
         return -1;
     } else {
         return 0;
@@ -399,6 +394,8 @@ static const JNINativeMethod gMethods[] = {
         {"nativeGetImagePos",                              "(Lcom/example/java2cpp/bean/Image;)Lcom/example/java2cpp/bean/Position;",           (void *) get_image_pos},
         {"nativeGetImageData",                             "(Lcom/example/java2cpp/bean/Image;)[B",                                             (void *) get_image_data},
         {"nativeAdd",                                      "(II)I",                                                                             (void *) add},
+        {"nativeHandleJavaException",                      "()I",                                                                               (void *) handle_java_exception},
+        {"nativeUnHandleJavaException",                    "()I",                                                                               (void *) unhandle_java_exception},
         {"nativeTransmitString",                           "(Ljava/lang/String;)Ljava/lang/String;",                                            (void *) transmit_string},
         {"nativeGet4ByteUTF8String",                       "(Ljava/lang/String;)Ljava/lang/String;",                                            (void *) native_get_4ByteUTF8String},
         {"nativeGetGB2312String",                          "()Ljava/lang/String;",                                                              (void *) native_get_GB2312String},
@@ -434,6 +431,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     javaJNIInterface.static_num = env->GetStaticFieldID(c, "staticNum", "I");
     javaJNIInterface.getNum = env->GetMethodID(c, "getNum", "()I");
     javaJNIInterface.getStaticNum = env->GetStaticMethodID(c, "getStaticNum", "()I");
+    javaJNIInterface.javaThrowExceptMethod = env->GetStaticMethodID(c, "javaThrowException", "()V");
     //本地引用在native方法完成调用后，自动移除。大部分时候DeleteLocalRef可有可无。
     env->DeleteLocalRef(c);
 
