@@ -16,6 +16,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags ''
+                //targets "java2cpp"
             }
         }
     }
@@ -32,6 +33,7 @@ android {
     }
     externalNativeBuild {
         cmake {
+            //CMake配置文件所在路径
             path file('src/main/cpp/CMakeLists.txt')
             version '3.10.2'
         }
